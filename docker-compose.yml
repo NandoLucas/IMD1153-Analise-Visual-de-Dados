@@ -1,0 +1,49 @@
+version: "3.8"
+services:
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    container_name: jupyter-data-analysis
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - SPARK_MASTER=spark://spark-master:7077
+    command: start-notebook.sh --NotebookApp.token=''
+    depends_on:
+      - spark-master
+
+  spark-master:
+    image: bitnami/spark:latest
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_PORT=7077
+    ports:
+      - "7077:7077"  # Porta do master Spark
+      - "8080:8080"  # Interface web do Spark
+
+  spark-worker:
+    image: bitnami/spark:latest
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"  # Interface web do worker
+
+  python:
+    image: python:3.9-slim
+    container_name: python-data-analysis
+    volumes:
+      - ./notebooks:/usr/src/app
+    working_dir: /usr/src/app
+    command: tail -f /dev/null
+    environment:
+      - PYTHONUNBUFFERED=1
+    tty: true
+    depends_on:
+      - jupyter
